@@ -39,11 +39,11 @@ const data = {
       url: "/categorias",
       icon: Tag,
     },
-    {
-      title: "Contas",
-      url: "/contas",
-      icon: Wallet,
-    },
+    //{
+      //title: "Contas",
+      //url: "/contas",
+      //icon: Wallet,
+    //},
     {
       title: "Relatórios",
       url: "/relatorios",

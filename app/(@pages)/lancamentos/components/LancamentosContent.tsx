@@ -167,7 +167,7 @@ export function LancamentosContent() {
                 <TableHead>Categoria</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Valor</TableHead>
-                <TableHead>Status</TableHead>
+                {/*<TableHead>Status</TableHead>*/}
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -179,7 +179,7 @@ export function LancamentosContent() {
       <TableCell>{item.categoria?.nome || item.categoriaId}</TableCell>
       <TableCell>{item.data}</TableCell>
       <TableCell>{item.valor}</TableCell>
-      <TableCell><Badge variant="default">ativo</Badge></TableCell>
+     {/*<TableCell><Badge variant="default">ativo</Badge></TableCell>*/}
       <TableCell className="text-right flex gap-2 justify-end">
         <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}><Edit className="h-4 w-4" /></Button>
         <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4" /></Button>
