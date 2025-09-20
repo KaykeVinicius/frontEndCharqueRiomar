@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Header } from "@/components/header"
-import { LancamentosContent } from "@/components/lancamentos-content"
+import { LancamentosContent } from "./components/LancamentosContent"
 
 export default function LancamentosPage() {
   return (
