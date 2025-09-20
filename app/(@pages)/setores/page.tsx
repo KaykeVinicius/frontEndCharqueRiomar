@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Header } from "@/components/header"
-import { SetoresContent } from "@/components/setores-content"
+import { SetoresContent } from "./components/SetoresContent"
 
 export default function SetoresPage() {
   return (
