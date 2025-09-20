@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Header } from "@/components/header"
-import { CategoriasContent } from "@/components/categorias-content"
+import { CategoriasContent } from "@/app/(@pages)/categorias/components/CategoriasContent"
 
 export default function CategoriasPage() {
   return (
