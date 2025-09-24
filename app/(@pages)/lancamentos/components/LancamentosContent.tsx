@@ -29,6 +29,7 @@ export function LancamentosContent() {
     editingLancamento,
     formData,
     setFormData,
+    handleValorChange,
     createLancamento,
     updateLancamento,
     deleteLancamento,
@@ -45,14 +46,24 @@ export function LancamentosContent() {
     if (editingLancamento) await updateLancamento(editingLancamento.id, formData)
     else await createLancamento(formData)
 
-    setFormData({ setorId: 0, userId: 0, categoriaId: 0, data: "", valor: 0 })
+    setFormData({ setorId: 0, categoriaId: 0, data: "", valor: "" })
     setEditingLancamento(null)
     setIsDialogOpen(false)
   }
 
-  const handleEdit = (item: typeof formData) => {
-    setEditingLancamento(item as any)
-    setFormData(item)
+  const handleEdit = (item: any) => {
+    setEditingLancamento(item)
+    // 🔹 Formata o valor para Real ao editar
+    const valorFormatado = (item.valor || 0).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+    setFormData({ 
+      setorId: item.setorId, 
+      categoriaId: item.categoriaId, 
+      data: item.data, 
+      valor: valorFormatado 
+    })
     setIsDialogOpen(true)
   }
 
@@ -69,7 +80,7 @@ export function LancamentosContent() {
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setFormData({ setorId: 0, userId: 0, categoriaId: 0, data: "", valor: 0 })}>
+            <Button onClick={() => setFormData({ setorId: 0, categoriaId: 0, data: "", valor: "" })}>
               <Plus className="mr-2 h-4 w-4" /> Novo Lançamento
             </Button>
           </DialogTrigger>
@@ -87,26 +98,11 @@ export function LancamentosContent() {
                     value={formData.setorId}
                     onChange={e => setFormData({ ...formData, setorId: Number(e.target.value) })}
                     required
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <option value="">Selecione um setor</option>
+                    <option value="0">Selecione um setor</option>
                     {setores.map(s => (
                       <option key={s.id} value={s.id}>{s.nome}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Usuário */}
-                <div className="grid gap-2">
-                  <label htmlFor="userId">Usuário</label>
-                  <select
-                    id="userId"
-                    value={formData.userId}
-                    onChange={e => setFormData({ ...formData, userId: Number(e.target.value) })}
-                    required
-                  >
-                    <option value="">Selecione um usuário</option>
-                    {usuarios.map(u => (
-                      <option key={u.id} value={u.id}>{u.descricao}</option>
                     ))}
                   </select>
                 </div>
@@ -119,8 +115,9 @@ export function LancamentosContent() {
                     value={formData.categoriaId}
                     onChange={e => setFormData({ ...formData, categoriaId: Number(e.target.value) })}
                     required
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <option value="">Selecione uma categoria</option>
+                    <option value="0">Selecione uma categoria</option>
                     {categorias.map(c => (
                       <option key={c.id} value={c.id}>{c.nome}</option>
                     ))}
@@ -130,13 +127,28 @@ export function LancamentosContent() {
                 {/* Data */}
                 <div className="grid gap-2">
                   <label htmlFor="data">Data</label>
-                  <Input type="date" id="data" value={formData.data} onChange={e => setFormData({ ...formData, data: e.target.value })} required />
+                  <Input 
+                    type="date" 
+                    id="data" 
+                    value={formData.data} 
+                    onChange={e => setFormData({ ...formData, data: e.target.value })} 
+                    required 
+                  />
                 </div>
 
                 {/* Valor */}
                 <div className="grid gap-2">
-                  <label htmlFor="valor">Valor</label>
-                  <Input type="number" step="0.01" id="valor" value={formData.valor} onChange={e => setFormData({ ...formData, valor: Number(e.target.value) })} required />
+                  <label htmlFor="valor">Valor (R$)</label>
+                  <Input 
+                    type="text"
+                    inputMode="decimal"
+                    id="valor" 
+                    value={formData.valor}
+                    onChange={e => handleValorChange(e.target.value)}
+                    placeholder="0,00"
+                    required 
+                    className="text-right"
+                  />
                 </div>
               </div>
 
@@ -163,31 +175,35 @@ export function LancamentosContent() {
             <TableHeader>
               <TableRow>
                 <TableHead>Setor</TableHead>
-                <TableHead>Usuário</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Data</TableHead>
-                <TableHead>Valor</TableHead>
-                {/*<TableHead>Status</TableHead>*/}
+                <TableHead className="text-right">Valor</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
-           <TableBody>
-  {filteredLancamentos.map(item => (
-    <TableRow key={item.id}>
-      <TableCell>{item.setor?.nome || item.setorId}</TableCell>
-      <TableCell>{item.user?.descricao || item.userId}</TableCell>
-      <TableCell>{item.categoria?.nome || item.categoriaId}</TableCell>
-      <TableCell>{item.data}</TableCell>
-      <TableCell>{item.valor}</TableCell>
-     {/*<TableCell><Badge variant="default">ativo</Badge></TableCell>*/}
-      <TableCell className="text-right flex gap-2 justify-end">
-        <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}><Edit className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4" /></Button>
-      </TableCell>
-    </TableRow>
-  ))}
-</TableBody>
-
+            <TableBody>
+              {filteredLancamentos.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.setor?.nome || "N/A"}</TableCell>
+                  <TableCell>{item.categoria?.nome || "N/A"}</TableCell>
+                  <TableCell>{new Date(item.data).toLocaleDateString('pt-BR')}</TableCell>
+                  <TableCell className="text-right font-mono">
+                    {(item.valor || 0).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL'
+                    })}
+                  </TableCell>
+                  <TableCell className="text-right flex gap-2 justify-end">
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(item)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(item.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
           </Table>
         </CardContent>
       </Card>
