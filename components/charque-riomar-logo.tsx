@@ -17,7 +17,7 @@ export function CharqueRiomarLogo({ className, size = "md" }: CharqueRiomarLogoP
   return (
     <div className={cn("flex items-center justify-center", className)}>
       <Image
-        src="/images/charque-riomar-logo.png"
+        src="/image/charque-riomar-logo.png"
         alt="Charque Riomar"
         width={200}
         height={200}
