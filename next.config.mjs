@@ -13,7 +13,8 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:3001/:path*", // Proxy para a API Rails
+
+        destination: "http://10.7.2.57:3000/:path*", // Proxy para a API Rails
       },
     ];
   },
