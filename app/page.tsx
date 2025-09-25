@@ -1,7 +1,7 @@
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
-import { Header } from "@/components/header"
-import { Dashboard } from "@/components/dashboard"
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { Header } from "@/components/header";
+import { Dashboard } from "@/components/dashboard";
 
 export default function HomePage() {
   return (
@@ -14,5 +14,5 @@ export default function HomePage() {
         </main>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

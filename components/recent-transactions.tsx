@@ -1,58 +1,49 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+"use client";
 
-export function RecentTransactions() {
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Lancamento } from "@/app/@types/Lancamento";
+
+interface RecentTransactionsProps {
+  lancamentos: Lancamento[];
+}
+
+export function RecentTransactions({ lancamentos }: RecentTransactionsProps) {
+  if (!lancamentos || lancamentos.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Nenhum lançamento recente.
+      </p>
+    );
+  }
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-center">
-        <Avatar className="h-9 w-9">
-          <AvatarFallback>DS</AvatarFallback>
-        </Avatar>
-        <div className="ml-4 space-y-1">
-          <p className="text-sm font-medium leading-none">Desossa</p>
-          <p className="text-sm text-muted-foreground">Manutenção de Máquinas</p>
+    <div className="space-y-4">
+      {lancamentos.map((l) => (
+        <div key={l.id} className="flex items-center">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback>
+              {l.categoria?.nome
+                ? l.categoria.nome.slice(0, 2).toUpperCase()
+                : "XX"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="ml-4 space-y-1">
+            <p className="text-sm font-medium leading-none">
+              {l.categoria?.nome || "Sem categoria"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {l.setor?.nome || "Sem setor"}
+            </p>
+          </div>
+          <div className="ml-auto font-medium">
+            {l.valor
+              ? `R$ ${l.valor.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 2,
+                })}`
+              : "-"}
+          </div>
         </div>
-        <div className="ml-auto font-medium">-R$ 1.999,00</div>
-      </div>
-      <div className="flex items-center">
-        <Avatar className="h-9 w-9">
-          <AvatarFallback>SL</AvatarFallback>
-        </Avatar>
-        <div className="ml-4 space-y-1">
-          <p className="text-sm font-medium leading-none">Salga</p>
-          <p className="text-sm text-muted-foreground">Material de Limpeza</p>
-        </div>
-        <div className="ml-auto font-medium">-R$ 39,00</div>
-      </div>
-      <div className="flex items-center">
-        <Avatar className="h-9 w-9">
-          <AvatarFallback>VR</AvatarFallback>
-        </Avatar>
-        <div className="ml-4 space-y-1">
-          <p className="text-sm font-medium leading-none">Varal</p>
-          <p className="text-sm text-muted-foreground">Energia Elétrica</p>
-        </div>
-        <div className="ml-auto font-medium">-R$ 299,00</div>
-      </div>
-      <div className="flex items-center">
-        <Avatar className="h-9 w-9">
-          <AvatarFallback>DS</AvatarFallback>
-        </Avatar>
-        <div className="ml-4 space-y-1">
-          <p className="text-sm font-medium leading-none">Desossa</p>
-          <p className="text-sm text-muted-foreground">Equipamentos de Segurança</p>
-        </div>
-        <div className="ml-auto font-medium">-R$ 99,00</div>
-      </div>
-      <div className="flex items-center">
-        <Avatar className="h-9 w-9">
-          <AvatarFallback>SL</AvatarFallback>
-        </Avatar>
-        <div className="ml-4 space-y-1">
-          <p className="text-sm font-medium leading-none">Salga</p>
-          <p className="text-sm text-muted-foreground">Sal Industrial</p>
-        </div>
-        <div className="ml-auto font-medium">-R$ 2.500,00</div>
-      </div>
+      ))}
     </div>
-  )
+  );
 }
