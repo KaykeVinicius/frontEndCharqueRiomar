@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useLancamentos } from "@/app/(@pages)/lancamentos/hooks/useLancamentos";
 import {
   Card,
@@ -32,10 +32,50 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
+import * as XLSX from 'xlsx';
+import { RelatorioPDF } from './relatorio-pdf';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+
+// Função de Exportação Excel (mantida igual)
+const exportToExcel = (lancamentos: any[]) => {
+  if (lancamentos.length === 0) {
+    alert('Não há dados para exportar.');
+    return;
+  }
+
+  try {
+    // Preparar dados para Excel
+    const dadosFormatados = lancamentos.map(lancamento => ({
+      'Setor': lancamento.setor?.nome || 'N/A',
+      'Categoria': lancamento.categoria?.nome || 'N/A',
+      'Data': new Date(lancamento.data).toLocaleDateString('pt-BR'),
+      'Valor (R$)': Number(lancamento.valor || 0)
+    }));
+
+    // Calcular total
+    const total = lancamentos.reduce((sum, l) => sum + (l.valor || 0), 0);
+
+    const worksheet = XLSX.utils.json_to_sheet(dadosFormatados);
+    
+    // Adicionar linha de total
+    XLSX.utils.sheet_add_aoa(worksheet, [['', '', 'TOTAL GERAL', total]], { 
+      origin: -1 
+    });
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Lançamentos');
+    
+    XLSX.writeFile(workbook, `relatorio-charque-riomar-${new Date().toISOString().split('T')[0]}.xlsx`);
+  } catch (error) {
+    console.error('Erro ao gerar Excel:', error);
+    alert('Erro ao gerar Excel. Tente novamente.');
+  }
+};
 
 export function RelatoriosContent() {
   const { lancamentos, loading } = useLancamentos();
   const safeLancamentos = Array.isArray(lancamentos) ? lancamentos : [];
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   // 🔹 Dados do PieChart (gastos por setor)
   const pieData = useMemo(() => {
@@ -84,11 +124,38 @@ export function RelatoriosContent() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <FileText className="mr-2 h-4 w-4" />
-            Exportar PDF
-          </Button>
-          <Button variant="outline">
+          {/* Botão PDF com React PDF */}
+          {safeLancamentos.length > 0 ? (
+            <PDFDownloadLink
+              document={
+                <RelatorioPDF 
+                  lancamentos={safeLancamentos} 
+                  titulo="" 
+                />
+              }
+              fileName={`relatorio-charque-riomar-${new Date().toISOString().split('T')[0]}.pdf`}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+            >
+              {({ loading, error }) => (
+                <>
+                  <FileText className="mr-2 h-4 w-4" />
+                  {loading ? 'Gerando PDF...' : 'Exportar PDF'}
+                </>
+              )}
+            </PDFDownloadLink>
+          ) : (
+            <Button variant="outline" disabled>
+              <FileText className="mr-2 h-4 w-4" />
+              Exportar PDF
+            </Button>
+          )}
+
+          {/* Botão Excel (mantido igual) */}
+          <Button 
+            variant="outline" 
+            onClick={() => exportToExcel(safeLancamentos)}
+            disabled={safeLancamentos.length === 0}
+          >
             <Download className="mr-2 h-4 w-4" />
             Exportar Excel
           </Button>

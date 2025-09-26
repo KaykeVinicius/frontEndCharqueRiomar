@@ -124,8 +124,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton>
-              <Users />
-              <span>Admin User</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
