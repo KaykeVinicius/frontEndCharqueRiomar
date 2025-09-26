@@ -13,6 +13,7 @@ export const lancamentoApi = {
         valor: data.valor,
       },
     }),
+
   update: (id: number, data: Partial<Lancamento>) =>
     api.put<Lancamento>(`/lancamentos/${id}`, {
       lancamento: {

@@ -73,6 +73,8 @@ export function useLancamentos() {
       data.valor!.replace(/\./g, "").replace(",", ".")
     );
     const payload = { ...data, valor: valorNumerico };
+    console.log("📤 Enviando payload para API /lancamentos:", payload);
+
     const created = await lancamentoApi.create(payload);
     setLancamentos([...lancamentos, created]);
     return created;
