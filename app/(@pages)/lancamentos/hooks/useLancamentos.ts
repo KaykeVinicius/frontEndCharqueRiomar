@@ -36,7 +36,13 @@ export function useLancamentos() {
       categoriaApi.getAll(),
     ])
       .then(([lanc, sets, cats]) => {
-        setLancamentos(lanc);
+        // Ordenar lançamentos por data (mais recentes primeiro)
+        const lancamentosOrdenados = lanc.sort((a, b) => {
+          const dataA = new Date(a.data).getTime();
+          const dataB = new Date(b.data).getTime();
+          return dataB - dataA; // Ordem decrescente (mais recente primeiro)
+        });
+        setLancamentos(lancamentosOrdenados);
         setSetores(sets);
         setCategorias(cats);
       })
@@ -68,32 +74,66 @@ export function useLancamentos() {
   };
 
   const createLancamento = async (data: LancamentoForm) => {
+    
     validateLancamentoForm(data);
     const valorNumerico = parseFloat(
       data.valor!.replace(/\./g, "").replace(",", ".")
     );
+    
     const payload = { ...data, valor: valorNumerico };
-    console.log("📤 Enviando payload para API /lancamentos:", payload);
 
     const created = await lancamentoApi.create(payload);
-    setLancamentos([...lancamentos, created]);
+    
+    // 🔹 Atualizar lista mantendo a ordenação
+    const novosLancamentos = [...lancamentos, created].sort((a, b) => {
+      const dataA = new Date(a.data).getTime();
+      const dataB = new Date(b.data).getTime();
+      return dataB - dataA;
+    });
+    
+    novosLancamentos.forEach((l, i) => {
+    });
+    
+    setLancamentos(novosLancamentos);
     return created;
   };
 
   const updateLancamento = async (id: number, data: LancamentoForm) => {
+    
     validateLancamentoForm(data);
     const valorNumerico = parseFloat(
       data.valor!.replace(/\./g, "").replace(",", ".")
     );
+    
     const payload = { ...data, valor: valorNumerico };
+
     const updated = await lancamentoApi.update(id, payload);
-    setLancamentos(lancamentos.map((e) => (e.id === updated.id ? updated : e)));
+
+    // 🔹 Atualizar lista mantendo a ordenação
+    const novosLancamentos = lancamentos.map((e) => (e.id === updated.id ? updated : e))
+      .sort((a, b) => {
+        const dataA = new Date(a.data).getTime();
+        const dataB = new Date(b.data).getTime();
+        return dataB - dataA;
+      });
+    
+    novosLancamentos.forEach((l, i) => {
+    });
+    
+    setLancamentos(novosLancamentos);
     return updated;
   };
 
   const deleteLancamento = async (id: number) => {
     await lancamentoApi.delete(id);
-    setLancamentos(lancamentos.filter((e) => e.id !== id));
+    // 🔹 Mantém a ordenação após deletar
+    const novosLancamentos = lancamentos.filter((e) => e.id !== id)
+      .sort((a, b) => {
+        const dataA = new Date(a.data).getTime();
+        const dataB = new Date(b.data).getTime();
+        return dataB - dataA;
+      });
+    setLancamentos(novosLancamentos);
   };
 
   const formatValorForDisplay = (valor: number): string =>

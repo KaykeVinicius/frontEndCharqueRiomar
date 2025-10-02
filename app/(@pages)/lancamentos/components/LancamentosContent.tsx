@@ -51,10 +51,67 @@ export function LancamentosContent() {
     categorias,
   } = useLancamentos();
 
+  // 🔹 Função para formatar data sem problemas de fuso horário
+  const formatarDataParaExibicao = (dataString: string) => {
+    if (!dataString) return "N/A";
+    
+    // Divide a string YYYY-MM-DD e cria a data no fuso local
+    const [year, month, day] = dataString.split('-');
+    const data = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    
+    return data.toLocaleDateString("pt-BR");
+  };
+
+  // 🔹 Função para formatar valor como moeda brasileira
+  const formatarValorParaExibicao = (valor: number) => {
+    return valor.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
+  // 🔹 Função para calcular as datas permitidas
+  const getDatasPermitidas = () => {
+    const hoje = new Date();
+    const duasDiasAtras = new Date();
+    duasDiasAtras.setDate(hoje.getDate() - 2);
+    
+    return {
+      dataMinima: duasDiasAtras.toISOString().split('T')[0], // 2 dias atrás
+      dataMaxima: hoje.toISOString().split('T')[0] // hoje
+    };
+  };
+
+  const { dataMinima, dataMaxima } = getDatasPermitidas();
+
   if (loading) return <p>Carregando lançamentos...</p>;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 🔹 Validação da data antes de enviar
+    const dataSelecionada = new Date(formData.data + 'T00:00:00');
+    const hoje = new Date();
+    const duasDiasAtras = new Date();
+    duasDiasAtras.setDate(hoje.getDate() - 2);
+    
+    // Remove horas para comparar apenas as datas
+    hoje.setHours(0, 0, 0, 0);
+    duasDiasAtras.setHours(0, 0, 0, 0);
+    dataSelecionada.setHours(0, 0, 0, 0);
+    
+    if (dataSelecionada > hoje) {
+      alert("❌ Não é permitido lançar em datas futuras!");
+      return;
+    }
+    
+    if (dataSelecionada < duasDiasAtras) {
+      alert("❌ Só é permitido lançar até 2 dias antes da data atual!");
+      return;
+    }
+
     if (editingLancamento)
       await updateLancamento(editingLancamento.id, formData);
     else await createLancamento(formData);
@@ -100,7 +157,7 @@ export function LancamentosContent() {
                 setFormData({ setorId: 0, categoriaId: 0, data: "", valor: "" })
               }
             >
-              <Plus className="mr-2 h-4 w-4" /> Novo Lançamento
+              <Plus className="mr-2 h-4 w-4"/> Novo Lançamento
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -169,8 +226,13 @@ export function LancamentosContent() {
                     onChange={(e) =>
                       setFormData({ ...formData, data: e.target.value })
                     }
+                    min={dataMinima}
+                    max={dataMaxima}
                     required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    ⚠️ Permitido apenas lançamentos de {formatarDataParaExibicao(dataMinima)} até {formatarDataParaExibicao(dataMaxima)}
+                  </p>
                 </div>
 
                 {/* Valor */}
@@ -209,7 +271,7 @@ export function LancamentosContent() {
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por data ou valor..."
+              placeholder="Buscar por valor."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -233,13 +295,10 @@ export function LancamentosContent() {
                   <TableCell>{item.setor?.nome || "N/A"}</TableCell>
                   <TableCell>{item.categoria?.nome || "N/A"}</TableCell>
                   <TableCell>
-                    {new Date(item.data).toLocaleDateString("pt-BR")}
+                    {formatarDataParaExibicao(item.data)}
                   </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {(item.valor || 0).toLocaleString("pt-BR", {
-                      style: "currency",
-                      currency: "BRL",
-                    })}
+                  <TableCell className="text-right font-medium">
+                    {formatarValorParaExibicao(Number(item.valor || 0))}
                   </TableCell>
                   <TableCell className="text-right flex gap-2 justify-end">
                     <Button

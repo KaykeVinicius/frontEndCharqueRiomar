@@ -1,5 +1,16 @@
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer"
 
+// 🔹 Função para formatar data sem problemas de fuso horário
+const formatarDataParaPDF = (dataString: string) => {
+  if (!dataString) return "N/A";
+  
+  // Divide a string YYYY-MM-DD e cria a data no fuso local
+  const [year, month, day] = dataString.split('-');
+  const data = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  
+  return data.toLocaleDateString("pt-BR");
+}
+
 // Cores da marca Charque Riomar: Vermelho e Preto
 const styles = StyleSheet.create({
   page: {
@@ -200,7 +211,10 @@ export default function RelatorioPDF({ lancamentos, titulo = "RELATÓRIO DE LAN�
             <View key={lancamento.id || index} style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlternate}>
               <Text style={styles.colSetor}>{lancamento.setor?.nome || "N/A"}</Text>
               <Text style={styles.colCategoria}>{lancamento.categoria?.nome || "N/A"}</Text>
-              <Text style={styles.colData}>{new Date(lancamento.data).toLocaleDateString("pt-BR")}</Text>
+              <Text style={styles.colData}>
+                {/* 🔹 CORREÇÃO: Usar a função que evita problemas de fuso horário */}
+                {formatarDataParaPDF(lancamento.data)}
+              </Text>
               <Text style={styles.colValor}>R$ {formatarValor(lancamento.valor || 0)}</Text>
             </View>
           ))}
