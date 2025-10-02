@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,14 +26,77 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Download, FileText } from "lucide-react";
 import { useLancamentos } from "../hooks/useLancamentos";
+import { DatePickerWithRange } from "./date-range-picker";
+import type { DateRange } from "react-day-picker";
+import { startOfDay, endOfDay } from "date-fns";
+import * as XLSX from "xlsx";
+import { RelatorioPDF } from "./relatorio-pdf";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+
+// 🔹 Função de Exportação Excel
+const exportToExcel = (lancamentos: any[], periodo: string) => {
+  if (lancamentos.length === 0) {
+    alert("Não há dados para exportar.");
+    return;
+  }
+
+  try {
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.aoa_to_sheet([]);
+
+    XLSX.utils.sheet_add_aoa(
+      worksheet,
+      [
+        ["BIG CHARQUE INDUSTRIA E COMERCIO LTDA", "", "", "RELATÓRIO DE LANÇAMENTOS"],
+        ["CNPJ: 05.434.424/0001-88", "", "", ""],
+        ["Rua Pedro Spagnol, 4234 - Teixeirão", "", "", ""],
+        ["Cacoal - RO | CEP: 76965-598", "", "", ""],
+        ["Telefone: (69) 3443-2920", "", "", ""],
+        ["E-mail: comercial@charqueriomar.com.br", "", "", ""],
+        [],
+        ["PERÍODO:", periodo, "", `Total de lançamentos: ${lancamentos.length}`],
+        [],
+      ],
+      { origin: "A1" },
+    );
+
+    XLSX.utils.sheet_add_aoa(worksheet, [["SETOR", "CATEGORIA", "DATA", "VALOR (R$)"]], { origin: "A10" });
+
+    const dadosFormatados = lancamentos.map((lancamento) => [
+      lancamento.setor?.nome || "N/A",
+      lancamento.categoria?.nome || "N/A",
+      formatarDataParaExibicao(lancamento.data),
+      Number(lancamento.valor || 0),
+    ]);
+
+    XLSX.utils.sheet_add_aoa(worksheet, dadosFormatados, { origin: "A11" });
+
+    const linhaTotal = 11 + lancamentos.length;
+    XLSX.utils.sheet_add_aoa(
+      worksheet,
+      [["", "", "TOTAL GERAL", lancamentos.reduce((acc, l) => acc + Number(l.valor || 0), 0)]],
+      { origin: `A${linhaTotal}` },
+    );
+
+    worksheet["!cols"] = [{ wch: 25 }, { wch: 25 }, { wch: 15 }, { wch: 15 }];
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Lançamentos");
+    const fileName = `relatorio-lancamentos-${new Date().toISOString().split("T")[0]}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+  } catch (error) {
+    console.error("Erro ao gerar Excel:", error);
+    alert("Erro ao gerar Excel. Tente novamente.");
+  }
+};
 
 export function LancamentosContent() {
   const {
     lancamentos,
-    filteredLancamentos,
+    filteredLancamentos: originalFiltered,
     loading,
     searchTerm,
     setSearchTerm,
@@ -51,15 +114,27 @@ export function LancamentosContent() {
     categorias,
   } = useLancamentos();
 
+  // 🔹 Estados para os filtros adicionais
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [selectedSetor, setSelectedSetor] = useState("all");
+  const [selectedCategoria, setSelectedCategoria] = useState("all");
+
   // 🔹 Função para formatar data sem problemas de fuso horário
   const formatarDataParaExibicao = (dataString: string) => {
     if (!dataString) return "N/A";
     
-    // Divide a string YYYY-MM-DD e cria a data no fuso local
     const [year, month, day] = dataString.split('-');
     const data = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     
     return data.toLocaleDateString("pt-BR");
+  };
+
+  // 🔹 Função para converter data sem problemas de fuso horário (para filtro)
+  const parseDataSemFuso = (dataString: string): Date => {
+    if (!dataString) return new Date();
+    
+    const [year, month, day] = dataString.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   };
 
   // 🔹 Função para formatar valor como moeda brasileira
@@ -72,19 +147,53 @@ export function LancamentosContent() {
     });
   };
 
-  // 🔹 Função para calcular as datas permitidas
+  // 🔹 Função para calcular as datas permitidas (para novo lançamento)
   const getDatasPermitidas = () => {
     const hoje = new Date();
     const duasDiasAtras = new Date();
     duasDiasAtras.setDate(hoje.getDate() - 2);
     
     return {
-      dataMinima: duasDiasAtras.toISOString().split('T')[0], // 2 dias atrás
-      dataMaxima: hoje.toISOString().split('T')[0] // hoje
+      dataMinima: duasDiasAtras.toISOString().split('T')[0],
+      dataMaxima: hoje.toISOString().split('T')[0]
     };
   };
 
+  // 🔹 Filtros aplicados em tempo real
+  const lancamentosFiltrados = useMemo(() => {
+    let filtered = originalFiltered;
+
+    // Filtro por período
+    if (dateRange?.from && dateRange?.to) {
+      filtered = filtered.filter((lancamento) => {
+        const dataLancamento = parseDataSemFuso(lancamento.data);
+        const fromDate = startOfDay(dateRange.from!);
+        const toDate = endOfDay(dateRange.to!);
+
+        return dataLancamento >= fromDate && dataLancamento <= toDate;
+      });
+    }
+
+    // Filtro por setor
+    if (selectedSetor !== "all") {
+      filtered = filtered.filter((l) => l.setor?.nome === selectedSetor);
+    }
+
+    // Filtro por categoria
+    if (selectedCategoria !== "all") {
+      filtered = filtered.filter((l) => l.categoria?.nome === selectedCategoria);
+    }
+
+    return filtered;
+  }, [originalFiltered, dateRange, selectedSetor, selectedCategoria]);
+
   const { dataMinima, dataMaxima } = getDatasPermitidas();
+  const textoPeriodo = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) return "Todos os períodos";
+    const from = dateRange.from.toLocaleDateString("pt-BR");
+    const to = dateRange.to.toLocaleDateString("pt-BR");
+    return `${from} a ${to}`;
+  }, [dateRange]);
 
   if (loading) return <p>Carregando lançamentos...</p>;
 
@@ -97,7 +206,6 @@ export function LancamentosContent() {
     const duasDiasAtras = new Date();
     duasDiasAtras.setDate(hoje.getDate() - 2);
     
-    // Remove horas para comparar apenas as datas
     hoje.setHours(0, 0, 0, 0);
     duasDiasAtras.setHours(0, 0, 0, 0);
     dataSelecionada.setHours(0, 0, 0, 0);
@@ -123,7 +231,6 @@ export function LancamentosContent() {
 
   const handleEdit = (item: any) => {
     setEditingLancamento(item);
-    // 🔹 Formata o valor para Real ao editar
     const valorFormatado = (item.valor || 0).toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -157,7 +264,7 @@ export function LancamentosContent() {
                 setFormData({ setorId: 0, categoriaId: 0, data: "", valor: "" })
               }
             >
-              <Plus className="mr-2 h-4 w-4"/> Novo Lançamento
+              <Plus className="mr-2 h-4 w-4" /> Novo Lançamento
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -261,17 +368,119 @@ export function LancamentosContent() {
         </Dialog>
       </div>
 
-      {/* Tabela */}
+      {/* Card de Filtros e Exportação */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Lançamentos</CardTitle>
+          <CardTitle>Filtros e Exportação</CardTitle>
+          <CardDescription>Filtre os lançamentos e exporte em PDF ou Excel</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4 flex-wrap items-end">
+            {/* Filtro de Período */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Período</label>
+              <DatePickerWithRange date={dateRange} onDateChange={setDateRange} />
+            </div>
+
+            {/* Filtro de Setor */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Setor</label>
+              <Select value={selectedSetor} onValueChange={setSelectedSetor}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Setor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os setores</SelectItem>
+                  {Array.from(new Set(lancamentos.map((l) => l.setor?.nome).filter(Boolean))).map((setor) => (
+                    <SelectItem key={setor} value={setor!}>
+                      {setor}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Filtro de Categoria */}
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium">Categoria</label>
+              <Select value={selectedCategoria} onValueChange={setSelectedCategoria}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {Array.from(new Set(lancamentos.map((l) => l.categoria?.nome).filter(Boolean))).map((cat) => (
+                    <SelectItem key={cat} value={cat!}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Botão Limpar Filtros */}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDateRange(undefined);
+                setSelectedSetor("all");
+                setSelectedCategoria("all");
+              }}
+            >
+              Limpar Filtros
+            </Button>
+          </div>
+
+          {/* Botões de Exportação */}
+          <div className="flex justify-end gap-2 mt-4">
+            {lancamentosFiltrados.length > 0 ? (
+              <PDFDownloadLink
+                document={<RelatorioPDF lancamentos={lancamentosFiltrados} titulo={textoPeriodo} />}
+                fileName={`lancamentos-charque-riomar-${new Date().toISOString().split("T")[0]}.pdf`}
+              >
+                {({ loading }) => (
+                  <Button variant="outline" disabled={loading} className="cursor-pointer">
+                    <FileText className="mr-2 h-4 w-4" />
+                    {loading ? "Gerando PDF..." : "Exportar PDF"}
+                  </Button>
+                )}
+              </PDFDownloadLink>
+            ) : (
+              <Button variant="outline" disabled className="cursor-pointer">
+                <FileText className="mr-2 h-4 w-4" />
+                Exportar PDF
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => exportToExcel(lancamentosFiltrados, textoPeriodo)}
+              disabled={lancamentosFiltrados.length === 0}
+              className="cursor-pointer"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar Excel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabela de Lançamentos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Lista de Lançamentos 
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              ({lancamentosFiltrados.length} de {lancamentos.length} lançamentos)
+            </span>
+          </CardTitle>
           <CardDescription>
-            {filteredLancamentos.length} lançamento(s) cadastrado(s)
+            {dateRange?.from && dateRange?.to ? `Período: ${textoPeriodo}` : "Todos os lançamentos"}
           </CardDescription>
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por valor."
+              placeholder="Buscar por data ou valor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -290,7 +499,7 @@ export function LancamentosContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLancamentos.map((item) => (
+              {lancamentosFiltrados.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.setor?.nome || "N/A"}</TableCell>
                   <TableCell>{item.categoria?.nome || "N/A"}</TableCell>
@@ -324,4 +533,8 @@ export function LancamentosContent() {
       </Card>
     </div>
   );
+}
+
+function formatarDataParaExibicao(data: any): any {
+  throw new Error("Function not implemented.");
 }

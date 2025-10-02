@@ -1,7 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Header } from "@/components/header"
-import { RelatoriosContent } from "@/components/relatorios-content"
+import RelatoriosContent from "./components/relatorios-content"
 
 export default function RelatoriosPage() {
   return (
