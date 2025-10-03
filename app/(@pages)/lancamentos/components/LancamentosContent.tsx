@@ -26,16 +26,34 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, Download, FileText } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Download, FileText, ChevronDown } from "lucide-react";
 import { useLancamentos } from "../hooks/useLancamentos";
 import { DatePickerWithRange } from "./date-range-picker";
 import type { DateRange } from "react-day-picker";
-import { startOfDay, endOfDay } from "date-fns";
+import { startOfDay, endOfDay, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import * as XLSX from "xlsx";
 import { RelatorioPDF } from "./relatorio-pdf";
 import { PDFDownloadLink } from "@react-pdf/renderer";
+
+// 🔹 Função para converter data sem problemas de fuso horário
+const parseDataSemFuso = (dataString: string): Date => {
+  if (!dataString) return new Date();
+  const [year, month, day] = dataString.split('-');
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+};
 
 // 🔹 Função de Exportação Excel
 const exportToExcel = (lancamentos: any[], periodo: string) => {
@@ -93,6 +111,97 @@ const exportToExcel = (lancamentos: any[], periodo: string) => {
   }
 };
 
+// 🔹 Função para formatar data
+const formatarDataParaExibicao = (dataString: string) => {
+  if (!dataString) return "N/A";
+  const data = parseDataSemFuso(dataString);
+  return format(data, "dd/MM/yyyy", { locale: ptBR });
+};
+
+// 🔹 Componente para Select com busca
+interface SelectWithSearchProps {
+  options: Array<{ id: number; nome: string }>;
+  value: number;
+  onChange: (value: number) => void;
+  placeholder: string;
+  label: string;
+}
+
+function SelectWithSearch({ options, value, onChange, placeholder, label }: SelectWithSearchProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm) return options;
+    
+    const term = searchTerm.toLowerCase();
+    return options.filter(option => 
+      option.nome.toLowerCase().includes(term)
+    );
+  }, [options, searchTerm]);
+
+  const selectedOption = options.find(option => option.id === value);
+
+  return (
+    <div className="grid gap-2">
+      <label className="text-sm font-medium">{label}</label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        >
+          <span className={selectedOption ? "text-foreground" : "text-muted-foreground"}>
+            {selectedOption ? selectedOption.nome : placeholder}
+          </span>
+          <ChevronDown className="h-4 w-4 opacity-50" />
+        </button>
+        
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground rounded-md border shadow-md animate-in fade-in-80">
+            {/* Input de busca */}
+            <div className="p-2 border-b">
+              <Input
+                placeholder={`Buscar ${label.toLowerCase()}...`}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-8"
+                autoFocus
+              />
+            </div>
+            
+            {/* Lista de opções */}
+            <div className="max-h-60 overflow-auto">
+              {filteredOptions.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  Nenhum resultado encontrado
+                </div>
+              ) : (
+                filteredOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => {
+                      onChange(option.id);
+                      setIsOpen(false);
+                      setSearchTerm("");
+                    }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer ${
+                      option.id === value ? "bg-accent text-accent-foreground" : ""
+                    }`}
+                  >
+                    {option.nome}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function LancamentosContent() {
   const {
     lancamentos,
@@ -119,23 +228,9 @@ export function LancamentosContent() {
   const [selectedSetor, setSelectedSetor] = useState("all");
   const [selectedCategoria, setSelectedCategoria] = useState("all");
 
-  // 🔹 Função para formatar data sem problemas de fuso horário
-  const formatarDataParaExibicao = (dataString: string) => {
-    if (!dataString) return "N/A";
-    
-    const [year, month, day] = dataString.split('-');
-    const data = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    
-    return data.toLocaleDateString("pt-BR");
-  };
-
-  // 🔹 Função para converter data sem problemas de fuso horário (para filtro)
-  const parseDataSemFuso = (dataString: string): Date => {
-    if (!dataString) return new Date();
-    
-    const [year, month, day] = dataString.split('-');
-    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  };
+  // 🔹 Estado para a modal de confirmação de exclusão
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [lancamentoToDelete, setLancamentoToDelete] = useState<number | null>(null);
 
   // 🔹 Função para formatar valor como moeda brasileira
   const formatarValorParaExibicao = (valor: number) => {
@@ -190,8 +285,8 @@ export function LancamentosContent() {
   const { dataMinima, dataMaxima } = getDatasPermitidas();
   const textoPeriodo = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) return "Todos os períodos";
-    const from = dateRange.from.toLocaleDateString("pt-BR");
-    const to = dateRange.to.toLocaleDateString("pt-BR");
+    const from = format(dateRange.from, "dd/MM/yyyy", { locale: ptBR });
+    const to = format(dateRange.to, "dd/MM/yyyy", { locale: ptBR });
     return `${from} a ${to}`;
   }, [dateRange]);
 
@@ -244,7 +339,26 @@ export function LancamentosContent() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: number) => deleteLancamento(id);
+  // 🔹 Função para abrir a modal de confirmação de exclusão
+  const handleOpenDeleteDialog = (id: number) => {
+    setLancamentoToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // 🔹 Função para confirmar a exclusão
+  const handleConfirmDelete = async () => {
+    if (lancamentoToDelete) {
+      await deleteLancamento(lancamentoToDelete);
+      setIsDeleteDialogOpen(false);
+      setLancamentoToDelete(null);
+    }
+  };
+
+  // 🔹 Função para cancelar a exclusão
+  const handleCancelDelete = () => {
+    setIsDeleteDialogOpen(false);
+    setLancamentoToDelete(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -263,11 +377,12 @@ export function LancamentosContent() {
               onClick={() =>
                 setFormData({ setorId: 0, categoriaId: 0, data: "", valor: "" })
               }
+              className="cursor-pointer"
             >
               <Plus className="mr-2 h-4 w-4" /> Novo Lançamento
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {editingLancamento ? "Editar Lançamento" : "Novo Lançamento"}
@@ -275,57 +390,27 @@ export function LancamentosContent() {
             </DialogHeader>
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4 py-4">
-                {/* Setor */}
-                <div className="grid gap-2">
-                  <label htmlFor="setorId">Setor</label>
-                  <select
-                    id="setorId"
-                    value={formData.setorId}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        setorId: Number(e.target.value),
-                      })
-                    }
-                    required
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="0">Selecione um setor</option>
-                    {setores.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Setor com busca */}
+                <SelectWithSearch
+                  options={setores}
+                  value={formData.setorId ?? 0}
+                  onChange={(setorId) => setFormData({ ...formData, setorId })}
+                  placeholder="Selecione um setor"
+                  label="Setor"
+                />
 
-                {/* Categoria */}
-                <div className="grid gap-2">
-                  <label htmlFor="categoriaId">Categoria</label>
-                  <select
-                    id="categoriaId"
-                    value={formData.categoriaId}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        categoriaId: Number(e.target.value),
-                      })
-                    }
-                    required
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <option value="0">Selecione uma categoria</option>
-                    {categorias.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* Categoria com busca */}
+                <SelectWithSearch
+                  options={categorias}
+                  value={formData.categoriaId ?? 0}
+                  onChange={(categoriaId) => setFormData({ ...formData, categoriaId })}
+                  placeholder="Selecione uma categoria"
+                  label="Categoria"
+                />
 
                 {/* Data */}
                 <div className="grid gap-2">
-                  <label htmlFor="data">Data</label>
+                  <label htmlFor="data" className="text-sm font-medium">Data</label>
                   <Input
                     type="date"
                     id="data"
@@ -336,6 +421,7 @@ export function LancamentosContent() {
                     min={dataMinima}
                     max={dataMaxima}
                     required
+                    className="cursor-pointer"
                   />
                   <p className="text-xs text-muted-foreground">
                     ⚠️ Permitido apenas lançamentos de {formatarDataParaExibicao(dataMinima)} até {formatarDataParaExibicao(dataMaxima)}
@@ -344,7 +430,7 @@ export function LancamentosContent() {
 
                 {/* Valor */}
                 <div className="grid gap-2">
-                  <label htmlFor="valor">Valor (R$)</label>
+                  <label htmlFor="valor" className="text-sm font-medium">Valor (R$)</label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -353,13 +439,13 @@ export function LancamentosContent() {
                     onChange={(e) => handleValorChange(e.target.value)}
                     placeholder="0,00"
                     required
-                    className="text-right"
+                    className="text-right cursor-pointer"
                   />
                 </div>
               </div>
 
               <DialogFooter>
-                <Button type="submit">
+                <Button type="submit" className="cursor-pointer">
                   {editingLancamento ? "Salvar Alterações" : "Criar Lançamento"}
                 </Button>
               </DialogFooter>
@@ -368,11 +454,11 @@ export function LancamentosContent() {
         </Dialog>
       </div>
 
-      {/* Card de Filtros e Exportação */}
+      {/* Card de Filtros */}
       <Card>
         <CardHeader>
-          <CardTitle>Filtros e Exportação</CardTitle>
-          <CardDescription>Filtre os lançamentos e exporte em PDF ou Excel</CardDescription>
+          <CardTitle>Filtros</CardTitle>
+          <CardDescription>Filtre os lançamentos por período, setor ou categoria</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 flex-wrap items-end">
@@ -386,13 +472,13 @@ export function LancamentosContent() {
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium">Setor</label>
               <Select value={selectedSetor} onValueChange={setSelectedSetor}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px] cursor-pointer">
                   <SelectValue placeholder="Setor" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os setores</SelectItem>
                   {Array.from(new Set(lancamentos.map((l) => l.setor?.nome).filter(Boolean))).map((setor) => (
-                    <SelectItem key={setor} value={setor!}>
+                    <SelectItem key={setor} value={setor!} className="cursor-pointer">
                       {setor}
                     </SelectItem>
                   ))}
@@ -404,13 +490,13 @@ export function LancamentosContent() {
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium">Categoria</label>
               <Select value={selectedCategoria} onValueChange={setSelectedCategoria}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px] cursor-pointer">
                   <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas as categorias</SelectItem>
                   {Array.from(new Set(lancamentos.map((l) => l.categoria?.nome).filter(Boolean))).map((cat) => (
-                    <SelectItem key={cat} value={cat!}>
+                    <SelectItem key={cat} value={cat!} className="cursor-pointer">
                       {cat}
                     </SelectItem>
                   ))}
@@ -426,40 +512,9 @@ export function LancamentosContent() {
                 setSelectedSetor("all");
                 setSelectedCategoria("all");
               }}
-            >
-              Limpar Filtros
-            </Button>
-          </div>
-
-          {/* Botões de Exportação */}
-          <div className="flex justify-end gap-2 mt-4">
-            {lancamentosFiltrados.length > 0 ? (
-              <PDFDownloadLink
-                document={<RelatorioPDF lancamentos={lancamentosFiltrados} titulo={textoPeriodo} />}
-                fileName={`lancamentos-charque-riomar-${new Date().toISOString().split("T")[0]}.pdf`}
-              >
-                {({ loading }) => (
-                  <Button variant="outline" disabled={loading} className="cursor-pointer">
-                    <FileText className="mr-2 h-4 w-4" />
-                    {loading ? "Gerando PDF..." : "Exportar PDF"}
-                  </Button>
-                )}
-              </PDFDownloadLink>
-            ) : (
-              <Button variant="outline" disabled className="cursor-pointer">
-                <FileText className="mr-2 h-4 w-4" />
-                Exportar PDF
-              </Button>
-            )}
-
-            <Button
-              variant="outline"
-              onClick={() => exportToExcel(lancamentosFiltrados, textoPeriodo)}
-              disabled={lancamentosFiltrados.length === 0}
               className="cursor-pointer"
             >
-              <Download className="mr-2 h-4 w-4" />
-              Exportar Excel
+              Limpar Filtros
             </Button>
           </div>
         </CardContent>
@@ -468,22 +523,61 @@ export function LancamentosContent() {
       {/* Tabela de Lançamentos */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            Lista de Lançamentos 
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              ({lancamentosFiltrados.length} de {lancamentos.length} lançamentos)
-            </span>
-          </CardTitle>
-          <CardDescription>
-            {dateRange?.from && dateRange?.to ? `Período: ${textoPeriodo}` : "Todos os lançamentos"}
-          </CardDescription>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>
+                Lista de Lançamentos 
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  ({lancamentosFiltrados.length} de {lancamentos.length} lançamentos)
+                </span>
+              </CardTitle>
+              <CardDescription>
+                {dateRange?.from && dateRange?.to ? `Período: ${textoPeriodo}` : "Todos os lançamentos"}
+              </CardDescription>
+            </div>
+            
+            {/* Botões de Exportação no lado direito do header */}
+            <div className="flex gap-2">
+              {lancamentosFiltrados.length > 0 ? (
+                <PDFDownloadLink
+                  document={<RelatorioPDF lancamentos={lancamentosFiltrados} titulo={textoPeriodo} />}
+                  fileName={`lancamentos-charque-riomar-${new Date().toISOString().split("T")[0]}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button variant="outline" size="sm" disabled={loading} className="cursor-pointer">
+                      <FileText className="mr-2 h-4 w-4" />
+                      {loading ? "Gerando..." : "PDF"}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              ) : (
+                <Button variant="outline" size="sm" disabled className="cursor-not-allowed">
+                  <FileText className="mr-2 h-4 w-4" />
+                  PDF
+                </Button>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => exportToExcel(lancamentosFiltrados, textoPeriodo)}
+                disabled={lancamentosFiltrados.length === 0}
+                className="cursor-pointer"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Excel
+              </Button>
+            </div>
+          </div>
+          
+          {/* Barra de busca mantida no mesmo lugar */}
+          <div className="flex items-center space-x-2 mt-4">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por data ou valor..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="max-w-sm cursor-text"
             />
           </div>
         </CardHeader>
@@ -495,12 +589,12 @@ export function LancamentosContent() {
                 <TableHead>Categoria</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {lancamentosFiltrados.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className="cursor-default">
                   <TableCell>{item.setor?.nome || "N/A"}</TableCell>
                   <TableCell>{item.categoria?.nome || "N/A"}</TableCell>
                   <TableCell>
@@ -513,14 +607,8 @@ export function LancamentosContent() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleEdit(item)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDelete(item.id)}
+                      onClick={() => handleOpenDeleteDialog(item.id)}
+                      className="cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -531,10 +619,32 @@ export function LancamentosContent() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Modal de Confirmação de Exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={handleCancelDelete}
+              className="cursor-pointer"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-}
-
-function formatarDataParaExibicao(data: any): any {
-  throw new Error("Function not implemented.");
 }

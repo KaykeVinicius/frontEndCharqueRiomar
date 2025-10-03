@@ -23,14 +23,17 @@ export function useCategorias() {
     (c.nome || "").toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent, formDataUpperCase?: { nome: string }) => {
     e.preventDefault()
     try {
+      // 🔹 CORREÇÃO: Usar formDataUpperCase se fornecido, senão usar formData normal
+      const dadosParaSalvar = formDataUpperCase || formData
+      
       if (editingCategoria) {
-        const updated = await categoriaApi.update(editingCategoria.id, formData)
+        const updated = await categoriaApi.update(editingCategoria.id, dadosParaSalvar)
         setCategorias(categorias.map((c) => (c.id === updated.id ? updated : c)))
       } else {
-        const created = await categoriaApi.create(formData)
+        const created = await categoriaApi.create(dadosParaSalvar)
         setCategorias([...categorias, created])
       }
       setFormData({ nome: "" })
