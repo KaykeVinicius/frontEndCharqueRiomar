@@ -243,14 +243,20 @@ export function LancamentosContent() {
   };
 
   // 🔹 Função para calcular as datas permitidas (para novo lançamento)
+  // 🔹 COMENTADO PARA DEMONSTRAÇÃO - DESCOMENTAR EM PRODUÇÃO
   const getDatasPermitidas = () => {
     const hoje = new Date();
     const duasDiasAtras = new Date();
     duasDiasAtras.setDate(hoje.getDate() - 2);
     
     return {
-      dataMinima: duasDiasAtras.toISOString().split('T')[0],
-      dataMaxima: hoje.toISOString().split('T')[0]
+      // 🔹 COMENTADO: Permitir qualquer data para demonstração
+      // dataMinima: duasDiasAtras.toISOString().split('T')[0],
+      // dataMaxima: hoje.toISOString().split('T')[0]
+      
+      // 🔹 PARA DEMONSTRAÇÃO: Permitir qualquer data
+      dataMinima: null,
+      dataMaxima: null
     };
   };
 
@@ -295,7 +301,9 @@ export function LancamentosContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 🔹 Validação da data antes de enviar
+    // 🔹 VALIDAÇÃO DE DATA - COMENTADA PARA DEMONSTRAÇÃO
+    // 🔹 DESCOMENTAR EM PRODUÇÃO
+    /*
     const dataSelecionada = new Date(formData.data + 'T00:00:00');
     const hoje = new Date();
     const duasDiasAtras = new Date();
@@ -314,6 +322,7 @@ export function LancamentosContent() {
       alert("❌ Só é permitido lançar até 2 dias antes da data atual!");
       return;
     }
+    */
 
     if (editingLancamento)
       await updateLancamento(editingLancamento.id, formData);
@@ -418,13 +427,20 @@ export function LancamentosContent() {
                     onChange={(e) =>
                       setFormData({ ...formData, data: e.target.value })
                     }
-                    min={dataMinima}
-                    max={dataMaxima}
+                    // 🔹 COMENTADO: min e max para permitir qualquer data
+                    // min={dataMinima}
+                    // max={dataMaxima}
                     required
                     className="cursor-pointer"
                   />
+                  {/* 🔹 COMENTADO: Mensagem de restrição de datas
                   <p className="text-xs text-muted-foreground">
                     ⚠️ Permitido apenas lançamentos de {formatarDataParaExibicao(dataMinima)} até {formatarDataParaExibicao(dataMaxima)}
+                  </p>
+                  */}
+                  {/* 🔹 PARA DEMONSTRAÇÃO: Mensagem informativa */}
+                  <p className="text-xs text-muted-foreground">
+                    💡 Modo demonstração: qualquer data permitida
                   </p>
                 </div>
 

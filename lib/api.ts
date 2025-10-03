@@ -1,4 +1,4 @@
-const BASE_URL = "http://10.7.2.57:3001";
+const BASE_URL = "http://127.0.0.1:3002";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
