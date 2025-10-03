@@ -158,8 +158,8 @@ export function CategoriasContent() {
           <CardTitle>Lista de Categorias</CardTitle>
           <CardDescription>
             {categorias.length} categoria{categorias.length !== 1 ? "s" : ""} cadastrada
-            {categorias.length !== 1 ? "s" : ""}
-            {categorias.length > 1 && " • Ordenadas por nome"}
+            {categorias.length !== 1 ? "s." : ""}
+            {categorias.length > 1 && ""}
           </CardDescription>
           <div className="flex items-center space-x-2">
             <Search className="h-4 w-4 text-muted-foreground" />
