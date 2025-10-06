@@ -12,7 +12,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Separator } from "@/components/ui/separator";
-import { CharqueRiomarLogo } from "@/components/charque-riomar-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useRouter } from "next/navigation";
@@ -35,36 +34,45 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 bg-[var(--background)] border-b border-slate-200">
+    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 bg-[var(--background)] border-b border-slate-200 dark:border-slate-700">
       <div className="flex items-center gap-2 px-4">
-        <SidebarTrigger className="-ml-1" />
+        <SidebarTrigger className="-ml-1 cursor-pointer" />
         <Separator orientation="vertical" className="mr-2 h-4" />
-        <div className="hidden md:flex items-center gap-3">
-          <CharqueRiomarLogo size="sm" className="h-8" />
-          <Separator orientation="vertical" className="h-4" />
-        </div>
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem className="hidden md:block">
-              <BreadcrumbLink href="/">Dashboard</BreadcrumbLink>
+              <BreadcrumbLink 
+                href="/" 
+                className="cursor-pointer hover:text-blue-600 transition-colors"
+              >
+                Dashboard
+              </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator className="hidden md:block" />
             <BreadcrumbItem>
-              <BreadcrumbPage>Visão Geral</BreadcrumbPage>
+              <BreadcrumbPage className="cursor-default">Visão Geral</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
       <div className="ml-auto flex items-center gap-2 px-4">
         {/* Botão de Notificações */}
-        <Button variant="ghost" size="icon">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
           <Bell className="h-4 w-4" />
         </Button>
 
         {/* Dropdown do Usuário com Logout */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="flex items-center gap-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
               <User className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -78,18 +86,19 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
               <User className="h-4 w-4 mr-2" />
               <span>Meu Perfil</span>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
               <Settings className="h-4 w-4 mr-2" />
               <span>Configurações</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
               onClick={handleLogout} 
-              variant="destructive" // ✅ Usando a prop variant do seu dropdown
+              variant="destructive"
+              className="cursor-pointer"
             >
               <LogOut className="h-4 w-4 mr-2" />
               <span>Sair</span>

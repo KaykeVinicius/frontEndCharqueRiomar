@@ -75,49 +75,34 @@ export default function LoginPage() {
     if (numbers.length <= 11) setCpf(formatCPF(numbers))
   }
 
-  // Função de teste direto no botão (remova depois que funcionar)
-  const handleTestLogin = async () => {
-    const cpfNumbers = cpf.replace(/\D/g, "")
-    
-    if (!validateCPF(cpfNumbers)) {
-      setError("CPF inválido")
-      return
-    }
-
-    try {
-      await login(cpfNumbers, password)
-      router.push("/")
-    } catch (err: any) {
-      console.error("❌ Erro:", err)
-      setError(err?.message || "CPF ou senha inválidos")
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-xl border-0">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-2xl border-0 dark:border dark:border-slate-700 dark:bg-slate-900/95">
         <CardHeader className="text-center space-y-6 pb-8">
           <div className="flex justify-center">
             <CharqueRiomarLogo size="xl" className="drop-shadow-lg" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold text-slate-900">Sistema de Controle Financeiro</CardTitle>
-            <CardDescription className="text-slate-600 mt-2">
+            <CardTitle className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              Sistema de Controle Financeiro
+            </CardTitle>
+            <CardDescription className="text-slate-600 dark:text-slate-400 mt-2 text-base">
               Entre com suas credenciais para acessar o sistema
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          {/* FORM ORIGINAL */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+              <Alert variant="destructive" className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20">
+                <AlertDescription className="text-red-800 dark:text-red-200">{error}</AlertDescription>
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="cpf">CPF</Label>
+            <div className="space-y-3">
+              <Label htmlFor="cpf" className="text-slate-700 dark:text-slate-300 font-medium">
+                CPF
+              </Label>
               <Input
                 id="cpf"
                 type="text"
@@ -127,11 +112,14 @@ export default function LoginPage() {
                 required
                 disabled={loading}
                 maxLength={14}
+                className="h-12 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+            <div className="space-y-3">
+              <Label htmlFor="password" className="text-slate-700 dark:text-slate-300 font-medium">
+                Senha
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -141,28 +129,33 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
+                  className="h-12 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors pr-12"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer text-slate-500 dark:text-slate-400"
                   onClick={() => setShowPassword(!showPassword)}
                   disabled={loading}
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
             </div>
 
             <Button 
               type="submit" 
-              className="w-full bg-red-600 hover:bg-red-700" 
+              className="w-full h-12 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold text-base shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer"
               disabled={loading}
             >
               {loading ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   Entrando...
                 </>
               ) : (
@@ -171,29 +164,13 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* BOTÃO DE TESTE (REMOVA DEPOIS QUE FUNCIONAR) */}
-          <div className="mt-4 pt-4 border-t">
-            <Button 
-              onClick={handleTestLogin}
-              className="w-full bg-blue-600 hover:bg-blue-700" 
-              disabled={loading}
-              variant="outline"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Testando...
-                </>
-              ) : (
-                "Testar Login (Debug)"
-              )}
-            </Button>
-          </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-600">
+          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 text-center">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Esqueceu sua senha?{" "}
-              <a href="/forgot-password" className="text-red-600 hover:text-red-700 font-medium">
+              <a 
+                href="/forgot-password" 
+                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium underline underline-offset-2 transition-colors cursor-pointer"
+              >
                 Clique aqui
               </a>
             </p>
