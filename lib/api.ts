@@ -12,10 +12,14 @@ async function request<T>(
   endpoint: string,
   { method = "GET", body, headers }: RequestOptions = {}
 ): Promise<T> {
+  // Pega o token do localStorage
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
   const config: RequestInit = {
     method,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}), // envia JWT se existir
       ...headers,
     },
     ...(body ? { body: JSON.stringify(body) } : {}),

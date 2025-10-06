@@ -1,8 +1,7 @@
 "use client";
 
-import { Bell, User } from "lucide-react";
+import { Bell, User, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Breadcrumb,
@@ -15,8 +14,26 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CharqueRiomarLogo } from "@/components/charque-riomar-logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useAuth } from "@/hooks/useAuth";
+import { useRouter } from "next/navigation";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Header() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    logout();
+    router.push("/login");
+  };
+
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 bg-[var(--background)] border-b border-slate-200">
       <div className="flex items-center gap-2 px-4">
@@ -39,11 +56,48 @@ export function Header() {
         </Breadcrumb>
       </div>
       <div className="ml-auto flex items-center gap-2 px-4">
-     
+        {/* Botão de Notificações */}
         <Button variant="ghost" size="icon">
-          <User className="h-4 w-4" /> {/* 🔹 Ícone de usuário */}
+          <Bell className="h-4 w-4" />
         </Button>
-        <ThemeToggle /> {/* 🔹 Botão de alternância Dark/Light */}
+
+        {/* Dropdown do Usuário com Logout */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium">{user?.cpf}</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {user?.role?.toLowerCase()}
+                </p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="h-4 w-4 mr-2" />
+              <span>Meu Perfil</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Settings className="h-4 w-4 mr-2" />
+              <span>Configurações</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem 
+              onClick={handleLogout} 
+              variant="destructive" // ✅ Usando a prop variant do seu dropdown
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              <span>Sair</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <ThemeToggle />
       </div>
     </header>
   );

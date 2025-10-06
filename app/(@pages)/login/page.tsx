@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -11,35 +9,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CharqueRiomarLogo } from "@/components/charque-riomar-logo"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { useAuth } from "@/hooks/useAuth"
 
 const formatCPF = (value: string) => {
   const numbers = value.replace(/\D/g, "")
-  return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+  if (numbers.length <= 3) return numbers
+  if (numbers.length <= 6) return numbers.replace(/(\d{3})(\d{0,3})/, "$1.$2")
+  if (numbers.length <= 9) return numbers.replace(/(\d{3})(\d{3})(\d{0,3})/, "$1.$2.$3")
+  return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, "$1.$2.$3-$4")
 }
 
 const validateCPF = (cpf: string) => {
   const numbers = cpf.replace(/\D/g, "")
   if (numbers.length !== 11) return false
-
-  // Check for repeated digits
   if (/^(\d)\1{10}$/.test(numbers)) return false
 
-  // Validate check digits
   let sum = 0
-  for (let i = 0; i < 9; i++) {
-    sum += Number.parseInt(numbers[i]) * (10 - i)
-  }
+  for (let i = 0; i < 9; i++) sum += Number(numbers[i]) * (10 - i)
   let remainder = (sum * 10) % 11
   if (remainder === 10 || remainder === 11) remainder = 0
-  if (remainder !== Number.parseInt(numbers[9])) return false
+  if (remainder !== Number(numbers[9])) return false
 
   sum = 0
-  for (let i = 0; i < 10; i++) {
-    sum += Number.parseInt(numbers[i]) * (11 - i)
-  }
+  for (let i = 0; i < 10; i++) sum += Number(numbers[i]) * (11 - i)
   remainder = (sum * 10) % 11
   if (remainder === 10 || remainder === 11) remainder = 0
-  if (remainder !== Number.parseInt(numbers[10])) return false
+  if (remainder !== Number(numbers[10])) return false
 
   return true
 }
@@ -48,57 +43,53 @@ export default function LoginPage() {
   const [cpf, setCpf] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
+  const { login, loading } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     setError("")
 
-    if (!validateCPF(cpf)) {
+    // Remove formatação para validação
+    const cpfNumbers = cpf.replace(/\D/g, "")
+    
+    if (!validateCPF(cpfNumbers)) {
       setError("CPF inválido")
-      setIsLoading(false)
       return
     }
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user: {
-            cpf: cpf.replace(/\D/g, ""), // Send only numbers
-            password,
-          },
-        }),
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        // Salvar token no localStorage ou cookie
-        localStorage.setItem("authToken", data.token)
-        localStorage.setItem("user", JSON.stringify(data.user))
-        router.push("/")
-      } else {
-        const errorData = await response.json()
-        setError(errorData.error || "CPF ou senha inválidos")
-      }
-    } catch (err) {
-      setError("Erro de conexão. Tente novamente.")
-    } finally {
-      setIsLoading(false)
+      // ✅ ENVIA CPF SEM PONTOS para o backend
+      await login(cpfNumbers, password)
+      router.push("/")
+    } catch (err: any) {
+      console.error("💥 Erro capturado no componente:", err)
+      setError(err?.message || "CPF ou senha inválidos")
     }
   }
 
   const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     const numbers = value.replace(/\D/g, "")
-    if (numbers.length <= 11) {
-      setCpf(formatCPF(numbers))
+    if (numbers.length <= 11) setCpf(formatCPF(numbers))
+  }
+
+  // Função de teste direto no botão (remova depois que funcionar)
+  const handleTestLogin = async () => {
+    const cpfNumbers = cpf.replace(/\D/g, "")
+    
+    if (!validateCPF(cpfNumbers)) {
+      setError("CPF inválido")
+      return
+    }
+
+    try {
+      await login(cpfNumbers, password)
+      router.push("/")
+    } catch (err: any) {
+      console.error("❌ Erro:", err)
+      setError(err?.message || "CPF ou senha inválidos")
     }
   }
 
@@ -117,6 +108,7 @@ export default function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {/* FORM ORIGINAL */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <Alert variant="destructive">
@@ -133,7 +125,7 @@ export default function LoginPage() {
                 value={cpf}
                 onChange={handleCpfChange}
                 required
-                disabled={isLoading}
+                disabled={loading}
                 maxLength={14}
               />
             </div>
@@ -148,7 +140,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  disabled={isLoading}
+                  disabled={loading}
                 />
                 <Button
                   type="button"
@@ -156,15 +148,19 @@ export default function LoginPage() {
                   size="sm"
                   className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
-                  disabled={isLoading}
+                  disabled={loading}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full bg-red-600 hover:bg-red-700" disabled={isLoading}>
-              {isLoading ? (
+            <Button 
+              type="submit" 
+              className="w-full bg-red-600 hover:bg-red-700" 
+              disabled={loading}
+            >
+              {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Entrando...
@@ -174,6 +170,25 @@ export default function LoginPage() {
               )}
             </Button>
           </form>
+
+          {/* BOTÃO DE TESTE (REMOVA DEPOIS QUE FUNCIONAR) */}
+          <div className="mt-4 pt-4 border-t">
+            <Button 
+              onClick={handleTestLogin}
+              className="w-full bg-blue-600 hover:bg-blue-700" 
+              disabled={loading}
+              variant="outline"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Testando...
+                </>
+              ) : (
+                "Testar Login (Debug)"
+              )}
+            </Button>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-600">

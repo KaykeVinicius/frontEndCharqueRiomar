@@ -8,7 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 const roboto = Roboto({
   variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["100", "300", "400", "500", "700"], // adicionei mais pesos úteis
+  weight: ["100", "300", "400", "500", "700"], 
 });
 
 // Fonte Mono substituindo Geist Mono
@@ -35,6 +35,7 @@ export default function RootLayout({
       className={`${roboto.variable} ${firaCode.variable} antialiased`}
     >
       <body>
+        {/* Aqui usamos o ThemeProvider, que é Client Component */}
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

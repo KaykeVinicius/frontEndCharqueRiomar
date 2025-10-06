@@ -1,5 +1,5 @@
 import { api } from "@/lib/api"
-import { Usuario } from "@/app/@types/Usuario"
+import {Usuario } from "@/app/@types/Usuario"
 
 export const UsuarioApi = {
   getAll: () => api.get<Usuario[]>("/usuarios"),
