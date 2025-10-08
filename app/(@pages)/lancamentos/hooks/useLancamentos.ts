@@ -1,4 +1,7 @@
-import { useState, useEffect } from "react";
+// app/(@pages)/lancamentos/hooks/useLancamentos.ts
+"use client";
+
+import { useState, useEffect, useMemo } from "react";
 import { lancamentoApi } from "../api/lancamentos";
 import { setorApi } from "@/app/(@pages)/setores/api/setores";
 import { categoriaApi } from "@/app/(@pages)/categorias/api/categoria";
@@ -14,14 +17,29 @@ export type LancamentoForm = {
   valor?: string;
 };
 
+interface PaginationData {
+  count: number;
+  page: number;
+  items: number;
+  pages: number;
+  last: number;
+  from: number;
+  to: number;
+  prev: number | null;
+  next: number | null;
+}
+
 export function useLancamentos() {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingLancamento, setEditingLancamento] = useState<Lancamento | null>(
-    null
-  );
+  const [editingLancamento, setEditingLancamento] = useState<Lancamento | null>(null);
+
+  // 🔹 Estados de paginação
+  const [pagination, setPagination] = useState<PaginationData | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
 
   // 🔹 Estado do form sem IDs iniciais falsos
   const [formData, setFormData] = useState<LancamentoForm>({});
@@ -29,26 +47,51 @@ export function useLancamentos() {
   const [setores, setSetores] = useState<Setor[]>([]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
 
+  // 🔹 Carregar lançamentos com paginação
+  useEffect(() => {
+    loadLancamentos();
+  }, [currentPage, itemsPerPage]);
+
+  // 🔹 Carregar setores e categorias uma vez
   useEffect(() => {
     Promise.all([
-      lancamentoApi.getAll(),
       setorApi.getAll(),
       categoriaApi.getAll(),
     ])
-      .then(([lanc, sets, cats]) => {
-        // Ordenar lançamentos por data (mais recentes primeiro)
-        const lancamentosOrdenados = lanc.sort((a, b) => {
-          const dataA = new Date(a.data).getTime();
-          const dataB = new Date(b.data).getTime();
-          return dataB - dataA; // Ordem decrescente (mais recente primeiro)
-        });
-        setLancamentos(lancamentosOrdenados);
+      .then(([sets, cats]) => {
         setSetores(sets);
         setCategorias(cats);
       })
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+      .catch((err) => console.error("Erro ao carregar setores/categorias:", err));
   }, []);
+
+  const loadLancamentos = async () => {
+    setLoading(true);
+    try {
+      const response = await lancamentoApi.getAll({
+        page: currentPage,
+        per_page: itemsPerPage,
+      });
+      
+      console.log("📦 Dados recebidos da API:", response); // 🔹 DEBUG
+      
+      // 🔹 CORREÇÃO: Usar os dados diretamente da resposta paginada
+      setLancamentos(response.lancamentos || []);
+      setPagination(response.pagination || null);
+    } catch (error) {
+      console.error("Erro ao carregar lançamentos:", error);
+      // 🔹 Fallback: tentar carregar sem paginação se der erro
+      try {
+        const fallbackData = await lancamentoApi.getAll();
+        setLancamentos(fallbackData.lancamentos || fallbackData || []);
+      } catch (fallbackError) {
+        console.error("Erro no fallback:", fallbackError);
+        setLancamentos([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // 🔹 Formatação de valor em Real
   const formatToReal = (value: string = ""): string => {
@@ -74,76 +117,83 @@ export function useLancamentos() {
   };
 
   const createLancamento = async (data: LancamentoForm) => {
-    
     validateLancamentoForm(data);
     const valorNumerico = parseFloat(
       data.valor!.replace(/\./g, "").replace(",", ".")
     );
     
-    const payload = { ...data, valor: valorNumerico };
+    const payload = { 
+      setorId: data.setorId!,
+      categoriaId: data.categoriaId!,
+      data: data.data!,
+      valor: valorNumerico 
+    };
 
     const created = await lancamentoApi.create(payload);
     
-    // 🔹 Atualizar lista mantendo a ordenação
-    const novosLancamentos = [...lancamentos, created].sort((a, b) => {
-      const dataA = new Date(a.data).getTime();
-      const dataB = new Date(b.data).getTime();
-      return dataB - dataA;
-    });
-    
-    novosLancamentos.forEach((l, i) => {
-    });
-    
-    setLancamentos(novosLancamentos);
+    // 🔹 Recarregar os dados com paginação
+    await loadLancamentos();
     return created;
   };
 
   const updateLancamento = async (id: number, data: LancamentoForm) => {
-    
     validateLancamentoForm(data);
     const valorNumerico = parseFloat(
       data.valor!.replace(/\./g, "").replace(",", ".")
     );
     
-    const payload = { ...data, valor: valorNumerico };
+    const payload = { 
+      setorId: data.setorId!,
+      categoriaId: data.categoriaId!,
+      data: data.data!,
+      valor: valorNumerico 
+    };
 
     const updated = await lancamentoApi.update(id, payload);
 
-    // 🔹 Atualizar lista mantendo a ordenação
-    const novosLancamentos = lancamentos.map((e) => (e.id === updated.id ? updated : e))
-      .sort((a, b) => {
-        const dataA = new Date(a.data).getTime();
-        const dataB = new Date(b.data).getTime();
-        return dataB - dataA;
-      });
-    
-    novosLancamentos.forEach((l, i) => {
-    });
-    
-    setLancamentos(novosLancamentos);
+    // 🔹 Recarregar os dados com paginação
+    await loadLancamentos();
     return updated;
   };
 
   const deleteLancamento = async (id: number) => {
     await lancamentoApi.delete(id);
-    // 🔹 Mantém a ordenação após deletar
-    const novosLancamentos = lancamentos.filter((e) => e.id !== id)
-      .sort((a, b) => {
-        const dataA = new Date(a.data).getTime();
-        const dataB = new Date(b.data).getTime();
-        return dataB - dataA;
-      });
-    setLancamentos(novosLancamentos);
+    // 🔹 Recarregar os dados com paginação
+    await loadLancamentos();
   };
 
   const formatValorForDisplay = (valor: number): string =>
     valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const filteredLancamentos = lancamentos.filter(
-    (l) =>
-      (l.data || "").includes(searchTerm) ||
-      (l.valor || 0).toString().includes(searchTerm)
-  );
+  // 🔹 Filtro local para busca em tempo real
+  const filteredLancamentos = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return lancamentos;
+    }
+
+    const term = searchTerm.toLowerCase();
+    return lancamentos.filter((lancamento) => {
+      const dataStr = lancamento.data ? new Date(lancamento.data).toLocaleDateString('pt-BR') : '';
+      const valorStr = lancamento.valor?.toString() || '';
+      
+      return (
+        dataStr.includes(term) ||
+        valorStr.includes(term) ||
+        lancamento.setor?.nome?.toLowerCase().includes(term) ||
+        lancamento.categoria?.nome?.toLowerCase().includes(term)
+      );
+    });
+  }, [lancamentos, searchTerm]);
+
+  // 🔹 Funções de paginação
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1); // Volta para a primeira página
+  };
 
   return {
     lancamentos,
@@ -164,5 +214,11 @@ export function useLancamentos() {
     setores,
     categorias,
     formatValorForDisplay,
+    // 🔹 Novos props de paginação
+    pagination,
+    currentPage,
+    itemsPerPage,
+    handlePageChange,
+    handleItemsPerPageChange,
   };
 }

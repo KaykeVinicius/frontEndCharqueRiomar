@@ -121,7 +121,7 @@ const formatarDataParaExibicao = (dataString: string) => {
 // 🔹 Componente para Select com busca
 interface SelectWithSearchProps {
   options: Array<{ id: number; nome: string }>;
-  value: number;
+  value: number | undefined;
   onChange: (value: number) => void;
   placeholder: string;
   label: string;
@@ -221,6 +221,11 @@ export function LancamentosContent() {
     setEditingLancamento,
     setores,
     categorias,
+    pagination,
+    currentPage,
+    itemsPerPage,
+    handlePageChange,
+    handleItemsPerPageChange,
   } = useLancamentos();
 
   // 🔹 Estados para os filtros adicionais
@@ -243,18 +248,12 @@ export function LancamentosContent() {
   };
 
   // 🔹 Função para calcular as datas permitidas (para novo lançamento)
-  // 🔹 COMENTADO PARA DEMONSTRAÇÃO - DESCOMENTAR EM PRODUÇÃO
   const getDatasPermitidas = () => {
     const hoje = new Date();
     const duasDiasAtras = new Date();
     duasDiasAtras.setDate(hoje.getDate() - 2);
     
     return {
-      // 🔹 COMENTADO: Permitir qualquer data para demonstração
-      // dataMinima: duasDiasAtras.toISOString().split('T')[0],
-      // dataMaxima: hoje.toISOString().split('T')[0]
-      
-      // 🔹 PARA DEMONSTRAÇÃO: Permitir qualquer data
       dataMinima: null,
       dataMaxima: null
     };
@@ -301,34 +300,24 @@ export function LancamentosContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // 🔹 VALIDAÇÃO DE DATA - COMENTADA PARA DEMONSTRAÇÃO
-    // 🔹 DESCOMENTAR EM PRODUÇÃO
-    /*
-    const dataSelecionada = new Date(formData.data + 'T00:00:00');
-    const hoje = new Date();
-    const duasDiasAtras = new Date();
-    duasDiasAtras.setDate(hoje.getDate() - 2);
-    
-    hoje.setHours(0, 0, 0, 0);
-    duasDiasAtras.setHours(0, 0, 0, 0);
-    dataSelecionada.setHours(0, 0, 0, 0);
-    
-    if (dataSelecionada > hoje) {
-      alert("❌ Não é permitido lançar em datas futuras!");
+    // 🔹 CORREÇÃO TYPESCRIPT: Verificar se valor existe antes de usar
+    if (!formData.valor) {
+      alert("Por favor, insira um valor válido");
       return;
     }
-    
-    if (dataSelecionada < duasDiasAtras) {
-      alert("❌ Só é permitido lançar até 2 dias antes da data atual!");
+
+    const valorNumerico = parseFloat(formData.valor.replace('.', '').replace(',', '.'));
+    if (isNaN(valorNumerico)) {
+      alert("Por favor, insira um valor válido");
       return;
     }
-    */
 
     if (editingLancamento)
       await updateLancamento(editingLancamento.id, formData);
-    else await createLancamento(formData);
+    else 
+      await createLancamento(formData);
 
-    setFormData({ setorId: 0, categoriaId: 0, data: "", valor: "" });
+    setFormData({}); // 🔹 Limpa o form corretamente
     setEditingLancamento(null);
     setIsDialogOpen(false);
   };
@@ -343,7 +332,7 @@ export function LancamentosContent() {
       setorId: item.setorId,
       categoriaId: item.categoriaId,
       data: item.data,
-      valor: valorFormatado,
+      valor: valorFormatado, // 🔹 Agora sempre tem valor
     });
     setIsDialogOpen(true);
   };
@@ -383,9 +372,7 @@ export function LancamentosContent() {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button
-              onClick={() =>
-                setFormData({ setorId: 0, categoriaId: 0, data: "", valor: "" })
-              }
+              onClick={() => setFormData({})} // 🔹 Limpa o form corretamente
               className="cursor-pointer"
             >
               <Plus className="mr-2 h-4 w-4" /> Novo Lançamento
@@ -402,7 +389,7 @@ export function LancamentosContent() {
                 {/* Setor com busca */}
                 <SelectWithSearch
                   options={setores}
-                  value={formData.setorId ?? 0}
+                  value={formData.setorId}
                   onChange={(setorId) => setFormData({ ...formData, setorId })}
                   placeholder="Selecione um setor"
                   label="Setor"
@@ -411,7 +398,7 @@ export function LancamentosContent() {
                 {/* Categoria com busca */}
                 <SelectWithSearch
                   options={categorias}
-                  value={formData.categoriaId ?? 0}
+                  value={formData.categoriaId}
                   onChange={(categoriaId) => setFormData({ ...formData, categoriaId })}
                   placeholder="Selecione uma categoria"
                   label="Categoria"
@@ -423,22 +410,13 @@ export function LancamentosContent() {
                   <Input
                     type="date"
                     id="data"
-                    value={formData.data}
+                    value={formData.data || ""}
                     onChange={(e) =>
                       setFormData({ ...formData, data: e.target.value })
                     }
-                    // 🔹 COMENTADO: min e max para permitir qualquer data
-                    // min={dataMinima}
-                    // max={dataMaxima}
                     required
                     className="cursor-pointer"
                   />
-                  {/* 🔹 COMENTADO: Mensagem de restrição de datas
-                  <p className="text-xs text-muted-foreground">
-                    ⚠️ Permitido apenas lançamentos de {formatarDataParaExibicao(dataMinima)} até {formatarDataParaExibicao(dataMaxima)}
-                  </p>
-                  */}
-                  {/* 🔹 PARA DEMONSTRAÇÃO: Mensagem informativa */}
                   <p className="text-xs text-muted-foreground">
                     💡 Modo demonstração: qualquer data permitida
                   </p>
@@ -451,7 +429,7 @@ export function LancamentosContent() {
                     type="text"
                     inputMode="decimal"
                     id="valor"
-                    value={formData.valor}
+                    value={formData.valor || ""}
                     onChange={(e) => handleValorChange(e.target.value)}
                     placeholder="0,00"
                     required
@@ -544,7 +522,7 @@ export function LancamentosContent() {
               <CardTitle>
                 Lista de Lançamentos 
                 <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({lancamentosFiltrados.length} de {lancamentos.length} lançamentos)
+                  ({lancamentosFiltrados.length} de {pagination ? pagination.count : lancamentos.length} lançamentos)
                 </span>
               </CardTitle>
               <CardDescription>
@@ -633,6 +611,69 @@ export function LancamentosContent() {
               ))}
             </TableBody>
           </Table>
+
+          {/* Componente de Paginação */}
+          {pagination && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                Mostrando {pagination.from} a {pagination.to} de {pagination.count} lançamentos
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Select
+                  value={itemsPerPage.toString()}
+                  onValueChange={(value) => handleItemsPerPageChange(Number(value))}
+                >
+                  <SelectTrigger className="w-[120px] cursor-pointer">
+                    <SelectValue placeholder="Itens por página" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 por página</SelectItem>
+                    <SelectItem value="20">20 por página</SelectItem>
+                    <SelectItem value="50">50 por página</SelectItem>
+                    <SelectItem value="100">100 por página</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={!pagination.prev}
+                    className="cursor-pointer"
+                  >
+                    Anterior
+                  </Button>
+                  
+                  {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
+                    const pageNum = i + 1;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        className="cursor-pointer"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={!pagination.next}
+                    className="cursor-pointer"
+                  >
+                    Próxima
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
